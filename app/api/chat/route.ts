@@ -17,7 +17,8 @@ import {
     wrapLanguageModel,
     extractReasoningMiddleware,
     customProvider,
-    generateObject
+    generateObject,
+    NoSuchToolError
 } from 'ai';
 import Exa from 'exa-js';
 import { z } from 'zod';
@@ -25,7 +26,8 @@ import { geolocation } from '@vercel/functions';
 
 const scira = customProvider({
     languageModels: {
-        'scira-default': xai('grok-2-vision-1212'),
+        'scira-default': xai('grok-2-1212'),
+        'scira-vision': xai('grok-2-vision-1212'),
         'scira-llama': cerebras('llama-3.3-70b'),
         'scira-sonnet': anthropic('claude-3-7-sonnet-20250219'),
         'scira-r1': wrapLanguageModel({
@@ -35,8 +37,8 @@ const scira = customProvider({
     }
 })
 
-// Allow streaming responses up to 120 seconds
-export const maxDuration = 300;
+// Allow streaming responses up to 600 seconds
+export const maxDuration = 600;
 
 interface XResult {
     id: string;
@@ -195,7 +197,7 @@ export async function POST(req: Request) {
                         description: 'Write and execute Python code to find stock data and generate a stock chart.',
                         parameters: z.object({
                             title: z.string().describe('The title of the chart.'),
-                            code: z.string().describe('The Python code to execute.'),
+                            code: z.string().describe('The Python code with matplotlib line chart and yfinance to execute.'),
                             icon: z
                                 .enum(['stock', 'date', 'calculation', 'default'])
                                 .describe('The icon to display for the chart.'),
@@ -710,16 +712,16 @@ export async function POST(req: Request) {
                         description: 'Search YouTube videos using Exa AI and get detailed video information.',
                         parameters: z.object({
                             query: z.string().describe('The search query for YouTube videos'),
-                            no_of_results: z.number().default(5).describe('The number of results to return'),
                         }),
-                        execute: async ({ query, no_of_results }: { query: string; no_of_results: number }) => {
+                        execute: async ({ query,  }: { query: string; }) => {
                             try {
                                 const exa = new Exa(serverEnv.EXA_API_KEY as string);
 
                                 // Simple search to get YouTube URLs only
                                 const searchResult = await exa.search(query, {
-                                    type: 'keyword',
-                                    numResults: no_of_results,
+                                    type: 'neural',
+                                    useAutoprompt: true,
+                                    numResults: 10,
                                     includeDomains: ['youtube.com'],
                                 });
 
@@ -811,7 +813,11 @@ export async function POST(req: Request) {
                             try {
                                 const content = await app.scrapeUrl(url);
                                 if (!content.success || !content.metadata) {
-                                    return { error: 'Failed to retrieve content' };
+                                    return {
+                                        results: [{
+                                            error: content.error
+                                        }]
+                                    };
                                 }
 
                                 // Define schema for extracting missing content
@@ -1348,24 +1354,22 @@ export async function POST(req: Request) {
                     }),
                     datetime: tool({
                         description: 'Get the current date and time in the user\'s timezone',
-                        parameters: z.object({
-                            // timezone: z.string().optional().describe('The user\'s timezone. If not provided, will use geolocation.')
-                        }),
-                        execute: async ({  }: { }) => {
+                        parameters: z.object({}),
+                        execute: async () => {
                             try {
                                 // Get current date and time
                                 const now = new Date();
-                                
+
                                 // Use geolocation to determine timezone
                                 let userTimezone = 'UTC'; // Default to UTC
-                                
+
                                 if (geo && geo.latitude && geo.longitude) {
                                     try {
                                         // Get timezone from coordinates using Google Maps API
                                         const tzResponse = await fetch(
                                             `https://maps.googleapis.com/maps/api/timezone/json?location=${geo.latitude},${geo.longitude}&timestamp=${Math.floor(now.getTime() / 1000)}&key=${serverEnv.GOOGLE_MAPS_API_KEY}`
                                         );
-                                        
+
                                         if (tzResponse.ok) {
                                             const tzData = await tzResponse.json();
                                             if (tzData.status === 'OK' && tzData.timeZoneId) {
@@ -1383,7 +1387,7 @@ export async function POST(req: Request) {
                                 } else {
                                     console.log('No geolocation data available, using UTC');
                                 }
-                                
+
                                 // Format date and time using the timezone
                                 return {
                                     timestamp: now.getTime(),
@@ -1475,6 +1479,10 @@ export async function POST(req: Request) {
                                         - 2-8 key analyses to perform
                                         - Prioritize the most important aspects to investigate
                                         
+                                        Do not use floating numbers, use whole numbers only in the priority field!!
+                                        Do not keep the numbers too low or high, make them reasonable in between.
+                                        Do not use 0 or 1 in the priority field, use numbers between 2 and 4.
+
                                         Consider different angles and potential controversies, but maintain focus on the core aspects.
                                         Ensure the total number of steps (searches + analyses) does not exceed 20.`
                             });
@@ -1710,6 +1718,7 @@ export async function POST(req: Request) {
                                         - Potential biases or conflicts
                                         - Severity should be between 2 and 10
                                         - Knowledge gaps should be between 2 and 10
+                                        - Do not keep the numbers too low or high, make them reasonable in between
                                         
                                         Research results: ${JSON.stringify(searchResults)}
                                         Analysis findings: ${JSON.stringify(stepIds.analysisSteps.map(step => ({
@@ -1916,6 +1925,7 @@ export async function POST(req: Request) {
                                     }),
                                     prompt: `Synthesize all research findings, including gap analysis and follow-up research.
                                             Highlight key conclusions and remaining uncertainties.
+                                            Stick to the types of the schema, do not add any other fields or types.
                                             
                                             Original results: ${JSON.stringify(searchResults)}
                                             Gap analysis: ${JSON.stringify(gapAnalysis)}
@@ -1975,6 +1985,45 @@ export async function POST(req: Request) {
                             };
                         },
                     }),
+                },
+                experimental_repairToolCall: async ({
+                    toolCall,
+                    tools,
+                    parameterSchema,
+                    error,
+                }) => {
+                    if (NoSuchToolError.isInstance(error)) {
+                        return null; // do not attempt to fix invalid tool names
+                    }
+
+                    console.log("Fixing tool call================================");
+                    console.log("toolCall", toolCall);
+                    console.log("tools", tools);
+                    console.log("parameterSchema", parameterSchema);
+                    console.log("error", error);
+
+                    const tool = tools[toolCall.toolName as keyof typeof tools];
+
+                    const { object: repairedArgs } = await generateObject({
+                        model: scira.languageModel("scira-default"),
+                        schema: tool.parameters,
+                        prompt: [
+                            `The model tried to call the tool "${toolCall.toolName}"` +
+                            ` with the following arguments:`,
+                            JSON.stringify(toolCall.args),
+                            `The tool accepts the following schema:`,
+                            JSON.stringify(parameterSchema(toolCall)),
+                            'Please fix the arguments.',
+                            'Do not use print statements stock chart tool.',
+                            `For the stock chart tool you have to generate a python code with matplotlib and yfinance to plot the stock chart.`,
+                            `For the web search make multiple queries to get the best results.`,
+                            `Today's date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+                        ].join('\n'),
+                    });
+
+                    console.log("repairedArgs", repairedArgs);
+
+                    return { ...toolCall, args: JSON.stringify(repairedArgs) };
                 },
                 onChunk(event) {
                     if (event.chunk.type === 'tool-call') {

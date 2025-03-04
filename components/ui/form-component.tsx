@@ -32,35 +32,36 @@ interface ModelSwitcherProps {
 }
 
 const XAIIcon = ({ className }: { className?: string }) => (
-    <svg 
-        width="440" 
-        height="483" 
-        viewBox="0 0 440 483" 
-        fill="none" 
+    <svg
+        width="440"
+        height="483"
+        viewBox="0 0 440 483"
+        fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
     >
-        <path d="M356.09 155.99L364.4 482.36H430.96L439.28 37.18L356.09 155.99Z" fill="currentColor"/>
-        <path d="M439.28 0.910004H337.72L178.35 228.53L229.13 301.05L439.28 0.910004Z" fill="currentColor"/>
-        <path d="M0.609985 482.36H102.17L152.96 409.84L102.17 337.31L0.609985 482.36Z" fill="currentColor"/>
-        <path d="M0.609985 155.99L229.13 482.36H330.69L102.17 155.99H0.609985Z" fill="currentColor"/>
+        <path d="M356.09 155.99L364.4 482.36H430.96L439.28 37.18L356.09 155.99Z" fill="currentColor" />
+        <path d="M439.28 0.910004H337.72L178.35 228.53L229.13 301.05L439.28 0.910004Z" fill="currentColor" />
+        <path d="M0.609985 482.36H102.17L152.96 409.84L102.17 337.31L0.609985 482.36Z" fill="currentColor" />
+        <path d="M0.609985 155.99L229.13 482.36H330.69L102.17 155.99H0.609985Z" fill="currentColor" />
     </svg>
 );
 
 const AnthropicIcon = ({ className }: { className?: string }) => (
-    <svg 
-        role="img" 
-        viewBox="0 0 24 24" 
+    <svg
+        role="img"
+        viewBox="0 0 24 24"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
     >
         <title>Anthropic</title>
-        <path fill="currentColor" d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/>
+        <path fill="currentColor" d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z" />
     </svg>
 );
 
 const models = [
-    { value: "scira-default", label: "Grok 2.0 Vision", icon: XAIIcon, iconClass: "!text-neutral-300", description: "xAI's Grok 2.0 Vision model", color: "steel", vision: true, experimental: false, category: "Stable" },
+    { value: "scira-default", label: "Grok 2.0", icon: XAIIcon, iconClass: "!text-neutral-300", description: "xAI's Grok 2.0 model", color: "glossyblack", vision: false, experimental: false, category: "Stable" },
+    { value: "scira-vision", label: "Grok 2.0 Vision", icon: XAIIcon, iconClass: "!text-neutral-300", description: "xAI's Grok 2.0 Vision model", color: "steel", vision: true, experimental: false, category: "Stable" },
     { value: "scira-sonnet", label: "Claude 3.7 Sonnet", icon: AnthropicIcon, iconClass: "!text-neutral-900 dark:!text-white", description: "Anthropic's G.O.A.T. model", color: "purple", vision: true, experimental: false, category: "Stable" },
     { value: "scira-llama", label: "Llama 3.3 70B", icon: "/cerebras.png", iconClass: "!text-neutral-900 dark:!text-white", description: "Meta's Llama model by Cerebras", color: "offgray", vision: false, experimental: true, category: "Experimental" },
     { value: "scira-r1", label: "DeepSeek R1 Distilled", icon: "/groq.svg", iconClass: "!text-neutral-900 dark:!text-white", description: "DeepSeek R1 model by Groq", color: "sapphire", vision: false, experimental: true, category: "Experimental" },
@@ -108,13 +109,13 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
     const isProcessing = status === 'submitted' || status === 'streaming';
 
     // Check for attachments in current and previous messages
-    const hasAttachments = attachments.length > 0 || messages.some(msg => 
+    const hasAttachments = attachments.length > 0 || messages.some(msg =>
         msg.experimental_attachments && msg.experimental_attachments.length > 0
     );
 
     // Filter models based on attachments first, then experimental status
-    const filteredModels = hasAttachments 
-        ? models.filter(model => model.vision) 
+    const filteredModels = hasAttachments
+        ? models.filter(model => model.vision)
         : models.filter(model => showExperimentalModels ? true : !model.experimental);
 
     // Group filtered models by category
@@ -133,8 +134,8 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
     };
 
     return (
-        <DropdownMenu 
-            onOpenChange={setIsOpen} 
+        <DropdownMenu
+            onOpenChange={setIsOpen}
             modal={false}
             open={isOpen && !isProcessing}
         >
@@ -152,8 +153,8 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
             >
                 {selectedModelData && (
                     typeof selectedModelData.icon === 'string' ? (
-                        <img 
-                            src={selectedModelData.icon} 
+                        <img
+                            src={selectedModelData.icon}
                             alt={selectedModelData.label}
                             className={cn(
                                 "w-3.5 h-3.5 object-contain",
@@ -161,7 +162,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
                             )}
                         />
                     ) : (
-                        <selectedModelData.icon 
+                        <selectedModelData.icon
                             className={cn(
                                 "w-3.5 h-3.5",
                                 selectedModelData.iconClass
@@ -222,7 +223,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
                                         "group-hover:bg-black/10 dark:group-hover:bg-white/10"
                                     )}>
                                         {typeof model.icon === 'string' ? (
-                                            <img 
+                                            <img
                                                 src={model.icon}
                                                 alt={model.label}
                                                 className={cn(
@@ -231,7 +232,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = ({ selectedModel, setSelecte
                                                 )}
                                             />
                                         ) : (
-                                            <model.icon 
+                                            <model.icon
                                                 className={cn(
                                                     "w-3 h-3",
                                                     model.iconClass
@@ -340,14 +341,14 @@ const CharacterCounter = ({ current, max }: { current: number; max: number }) =>
     const percentage = Math.min(100, (current / max) * 100);
     const isNearLimit = percentage >= 80 && percentage < 100;
     const isOverLimit = percentage >= 100;
-    
+
     // Twitter-like styling
-    const strokeColor = isOverLimit 
-        ? 'stroke-red-500' 
-        : isNearLimit 
-            ? 'stroke-amber-500' 
+    const strokeColor = isOverLimit
+        ? 'stroke-red-500'
+        : isNearLimit
+            ? 'stroke-amber-500'
             : 'stroke-neutral-400';
-    
+
     // Smaller size for more compact look
     const size = 16;
     const strokeWidth = 1.5;
@@ -355,14 +356,14 @@ const CharacterCounter = ({ current, max }: { current: number; max: number }) =>
     const circumference = 2 * Math.PI * radius;
     const dash = (percentage * circumference) / 100;
     const gap = circumference - dash;
-    
+
     // Add border to ensure visibility on all backgrounds
     const bgColor = isOverLimit
         ? 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700'
         : isNearLimit
             ? 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700'
             : 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700';
-    
+
     return (
         <div className={`relative flex items-center justify-center ${bgColor} rounded-full shadow-sm transition-all duration-200`}>
             <svg height={size} width={size} viewBox={`0 0 ${size} ${size}`} className="rotate-[-90deg]">
@@ -636,7 +637,7 @@ const SelectionContent = ({ selectedGroup, onGroupSelect, status, onExpandChange
             animate={{
                 width: isExpanded && !isProcessing ? "auto" : "30px",
                 gap: isExpanded && !isProcessing ? "0.5rem" : 0,
-                paddingRight: isExpanded && !isProcessing ? "0.5rem" : 0,
+                paddingRight: isExpanded && !isProcessing ? "0.25rem" : 0,
             }}
             transition={{
                 duration: 0.2,
@@ -745,7 +746,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
     const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         event.preventDefault();
         const newValue = event.target.value;
-        
+
         // Check if input exceeds character limit
         if (newValue.length > MAX_INPUT_CHARS) {
             setIsExceedingLimit(true);
@@ -757,7 +758,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
             setIsExceedingLimit(false);
             setInput(newValue);
         }
-        
+
         autoResizeInput(event.target);
     };
 
@@ -832,7 +833,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
         e.preventDefault();
         e.stopPropagation();
         if (attachments.length >= MAX_IMAGES) return;
-        
+
         if (e.dataTransfer.items && e.dataTransfer.items[0].kind === "file") {
             setIsDragging(true);
         }
@@ -853,7 +854,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
         e.stopPropagation();
         setIsDragging(false);
 
-        const files = Array.from(e.dataTransfer.files).filter(file => 
+        const files = Array.from(e.dataTransfer.files).filter(file =>
             file.type.startsWith('image/')
         );
 
@@ -896,12 +897,12 @@ const FormComponent: React.FC<FormComponentProps> = ({
     const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
         const items = Array.from(e.clipboardData.items);
         const imageItems = items.filter(item => item.type.startsWith('image/'));
-        
+
         if (imageItems.length === 0) return;
-        
+
         // Prevent default paste behavior if there are images
         e.preventDefault();
-        
+
         const totalAttachments = attachments.length + imageItems.length;
         if (totalAttachments > MAX_IMAGES) {
             toast.error(`You can only attach up to ${MAX_IMAGES} images.`);
@@ -922,12 +923,12 @@ const FormComponent: React.FC<FormComponentProps> = ({
             const files = imageItems.map(item => item.getAsFile()).filter(Boolean) as File[];
             const uploadPromises = files.map(file => uploadFile(file));
             const uploadedAttachments = await Promise.all(uploadPromises);
-            
+
             setAttachments(currentAttachments => [
                 ...currentAttachments,
                 ...uploadedAttachments,
             ]);
-            
+
             toast.success('Image pasted successfully');
         } catch (error) {
             console.error("Error uploading pasted files!", error);
@@ -1027,7 +1028,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
     const isMobile = width ? width < 768 : false;
 
     return (
-        <div 
+        <div
             className={cn(
                 "relative w-full flex flex-col gap-2 rounded-lg transition-all duration-300 !font-sans",
                 hasInteracted ? "z-[51]" : "",
@@ -1042,7 +1043,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
         >
             <AnimatePresence>
                 {isDragging && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -1158,7 +1159,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
                                 onExpandChange={setIsGroupSelectorExpanded}
                             />
                         </div>
-                        
+
                         <div className={cn(
                             "transition-all duration-300",
                             (isMobile && isGroupSelectorExpanded) ? "opacity-0 w-0 invisible" : "opacity-100 visible w-auto"
@@ -1172,10 +1173,10 @@ const FormComponent: React.FC<FormComponentProps> = ({
                                 status={status}
                             />
                         </div>
-                        
+
                         <div className={cn(
                             "transition-all duration-300",
-                            (isMobile && isGroupSelectorExpanded) 
+                            (isMobile && isGroupSelectorExpanded)
                                 ? "opacity-0 invisible w-0"
                                 : "opacity-100 visible w-auto"
                         )}>
@@ -1188,8 +1189,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
                                     "rounded-full transition-all duration-300",
                                     "border border-neutral-200 dark:border-neutral-800",
                                     "hover:shadow-md",
-                                    selectedGroup === 'extreme' 
-                                        ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900" 
+                                    selectedGroup === 'extreme'
+                                        ? "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900"
                                         : "bg-white dark:bg-neutral-900 text-neutral-500",
                                 )}
                             >

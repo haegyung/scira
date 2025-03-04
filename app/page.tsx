@@ -66,7 +66,7 @@ import {
     Moon,
     Pause,
     Plane,
-    Play,
+    Play as PlayIcon,
     Plus,
     Sparkles,
     Sun,
@@ -128,6 +128,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import ReasonSearch from '@/components/reason-search';
 import he from 'he';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const maxDuration = 120;
 
@@ -487,48 +488,68 @@ function CollapsibleSection({
 }
 
 const YouTubeCard: React.FC<YouTubeCardProps> = ({ video, index }) => {
-    const [timestampsExpanded, setTimestampsExpanded] = useState(false);
-    const [transcriptExpanded, setTranscriptExpanded] = useState(false);
-
+    const [isExpanded, setIsExpanded] = useState(false);
+    
     if (!video) return null;
 
+    // Format timestamp for accessibility
+    const formatTimestamp = (timestamp: string) => {
+        const match = timestamp.match(/(\d+:\d+(?::\d+)?) - (.+)/);
+        if (match) {
+            const [_, time, description] = match;
+            return { time, description };
+        }
+        return { time: "", description: timestamp };
+    };
+
+    // Prevent event propagation to allow scrolling during streaming
+    const handleScrollableAreaEvents = (e: React.UIEvent) => {
+        e.stopPropagation();
+    };
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="w-[300px] flex-shrink-0 relative rounded-xl dark:bg-neutral-800/50 bg-gray-50 overflow-hidden"
+        <div
+            className="w-[280px] flex-shrink-0 rounded-lg border dark:border-neutral-800 border-neutral-200 overflow-hidden bg-white dark:bg-neutral-900 shadow-sm hover:shadow-md transition-shadow duration-200"
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
         >
             <Link
                 href={video.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative aspect-video block bg-neutral-200 dark:bg-neutral-700"
+                className="relative aspect-video block bg-neutral-100 dark:bg-neutral-800 overflow-hidden"
+                aria-label={`Watch ${video.details?.title || 'YouTube video'}`}
             >
                 {video.details?.thumbnail_url ? (
                     <img
                         src={video.details.thumbnail_url}
-                        alt={video.details?.title || 'Video thumbnail'}
+                        alt=""
+                        aria-hidden="true"
                         className="w-full h-full object-cover"
                         loading="lazy"
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <YoutubeIcon className="h-8 w-8 text-neutral-400" />
+                        <YoutubeIcon className="h-8 w-8 text-red-500" />
                     </div>
                 )}
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <YoutubeIcon className="h-12 w-12 text-red-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="absolute bottom-2 left-2 right-2 text-white text-xs font-medium line-clamp-2">
+                        {video.details?.title || 'YouTube Video'}
+                    </div>
+                    <div className="rounded-full bg-white/90 p-2">
+                        <PlayIcon className="h-6 w-6 text-red-600" />
+                    </div>
                 </div>
             </Link>
 
-            <div className="p-4 flex flex-col gap-3">
-                <div className="space-y-2">
+            <div className="p-3 flex flex-col gap-2">
+                <div>
                     <Link
                         href={video.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-base font-medium line-clamp-2 hover:text-red-500 transition-colors dark:text-neutral-100"
+                        className="text-sm font-medium line-clamp-2 hover:text-red-500 transition-colors dark:text-neutral-100"
                     >
                         {video.details?.title || 'YouTube Video'}
                     </Link>
@@ -538,12 +559,13 @@ const YouTubeCard: React.FC<YouTubeCardProps> = ({ video, index }) => {
                             href={video.details.author_url || video.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 group w-fit"
+                            className="flex items-center gap-1.5 group mt-1.5 w-fit"
+                            aria-label={`Channel: ${video.details.author_name}`}
                         >
-                            <div className="h-6 w-6 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center flex-shrink-0">
-                                <User2 className="h-4 w-4 text-red-500" />
+                            <div className="h-5 w-5 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center flex-shrink-0">
+                                <User2 className="h-3 w-3 text-red-500" />
                             </div>
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400 group-hover:text-red-500 transition-colors truncate">
+                            <span className="text-xs text-neutral-600 dark:text-neutral-400 group-hover:text-red-500 transition-colors truncate">
                                 {video.details.author_name}
                             </span>
                         </Link>
@@ -551,71 +573,80 @@ const YouTubeCard: React.FC<YouTubeCardProps> = ({ video, index }) => {
                 </div>
 
                 {(video.timestamps && video.timestamps?.length > 0 || video.captions) && (
-                    <div className="space-y-3">
-                        <Separator />
-
-                        {video.timestamps && video.timestamps.length > 0 && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-medium dark:text-neutral-300">Key Moments</h4>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setTimestampsExpanded(!timestampsExpanded)}
-                                        className="h-6 px-2 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                    >
-                                        {timestampsExpanded ? 'Show Less' : `Show All (${video.timestamps.length})`}
-                                    </Button>
-                                </div>
-                                <div className={cn(
-                                    "space-y-1.5 overflow-hidden transition-all duration-300",
-                                    timestampsExpanded ? "max-h-[300px] overflow-y-auto" : "max-h-[72px]"
-                                )}>
-                                    {video.timestamps
-                                        .slice(0, timestampsExpanded ? undefined : 3)
-                                        .map((timestamp, i) => (
-                                            <div
-                                                key={i}
-                                                className="text-xs dark:text-neutral-400 text-neutral-600 line-clamp-1"
-                                            >
-                                                {timestamp}
-                                            </div>
-                                        ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {video.captions && (
-                            <>
-                                {video.timestamps && video.timestamps!.length > 0 && <Separator />}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-xs font-medium dark:text-neutral-300">Transcript</h4>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setTranscriptExpanded(!transcriptExpanded)}
-                                            className="h-6 px-2 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                        >
-                                            {transcriptExpanded ? 'Hide' : 'Show'}
-                                        </Button>
-                                    </div>
-                                    {transcriptExpanded && (
-                                        <div className="text-xs dark:text-neutral-400 text-neutral-600 max-h-[200px] overflow-y-auto rounded-md bg-neutral-100 dark:bg-neutral-900 p-3">
-                                            <p className="whitespace-pre-wrap">
-                                                {video.captions}
-                                            </p>
+                    <div className="mt-1">
+                        <Accordion type="single" collapsible>
+                            <AccordionItem value="details" className="border-none">
+                                <AccordionTrigger className="py-1 hover:no-underline">
+                                    <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400">
+                                        {isExpanded ? 'Hide details' : 'Show details'}
+                                    </span>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    {video.timestamps && video.timestamps.length > 0 && (
+                                        <div className="mt-2 space-y-1.5">
+                                            <h4 className="text-xs font-semibold dark:text-neutral-300 text-neutral-700">Key Moments</h4>
+                                            <ScrollArea className="h-[120px]">
+                                                <div className="pr-4">
+                                                    {video.timestamps.map((timestamp, i) => {
+                                                        const { time, description } = formatTimestamp(timestamp);
+                                                        return (
+                                                            <Link
+                                                                key={i}
+                                                                href={`${video.url}&t=${time.split(':').reduce((acc, time, i, arr) => {
+                                                                    if (arr.length === 2) { // MM:SS format
+                                                                        return i === 0 ? acc + parseInt(time) * 60 : acc + parseInt(time);
+                                                                    } else { // HH:MM:SS format
+                                                                        return i === 0 ? acc + parseInt(time) * 3600 : 
+                                                                               i === 1 ? acc + parseInt(time) * 60 : 
+                                                                               acc + parseInt(time);
+                                                                    }
+                                                                }, 0)}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-start gap-2 py-1 px-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                                                            >
+                                                                <span className="text-xs font-medium text-red-500 whitespace-nowrap">{time}</span>
+                                                                <span className="text-xs text-neutral-700 dark:text-neutral-300 line-clamp-1">{description}</span>
+                                                            </Link>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </ScrollArea>
                                         </div>
                                     )}
-                                </div>
-                            </>
-                        )}
+
+                                    {video.captions && (
+                                        <div className="mt-3 space-y-1.5">
+                                            <h4 className="text-xs font-semibold dark:text-neutral-300 text-neutral-700">Transcript</h4>
+                                            <ScrollArea className="h-[120px]">
+                                                <div className="text-xs dark:text-neutral-400 text-neutral-600 rounded bg-neutral-50 dark:bg-neutral-800 p-2">
+                                                    <p className="whitespace-pre-wrap">
+                                                        {video.captions}
+                                                    </p>
+                                                </div>
+                                            </ScrollArea>
+                                        </div>
+                                    )}
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </div>
                 )}
             </div>
-        </motion.div>
+        </div>
     );
 };
+
+// Memoize the YouTubeCard component with a more comprehensive equality function
+const MemoizedYouTubeCard = React.memo(YouTubeCard, (prevProps, nextProps) => {
+    // Deep comparison of video properties that matter for rendering
+    return (
+        prevProps.video.videoId === nextProps.video.videoId &&
+        prevProps.index === nextProps.index &&
+        prevProps.video.url === nextProps.video.url &&
+        JSON.stringify(prevProps.video.details) === JSON.stringify(nextProps.video.details)
+    );
+});
 
 const HomeContent = () => {
     const [query] = useQueryState('query', parseAsString.withDefault(''))
@@ -641,6 +672,7 @@ const HomeContent = () => {
     const [selectedGroup, setSelectedGroup] = useState<SearchGroupId>('web');
     const [hasSubmitted, setHasSubmitted] = React.useState(false);
     const [hasManuallyScrolled, setHasManuallyScrolled] = useState(false);
+    const isAutoScrollingRef = useRef(false);
 
     const chatOptions: UseChatOptions = useMemo(() => ({
         maxSteps: 5,
@@ -1132,33 +1164,55 @@ const HomeContent = () => {
     }, [messages]);
 
     useEffect(() => {
+        // Reset manual scroll when streaming starts
         if (status === 'streaming') {
             setHasManuallyScrolled(false);
+            // Initial scroll to bottom when streaming starts
+            if (bottomRef.current) {
+                isAutoScrollingRef.current = true;
+                bottomRef.current.scrollIntoView({ behavior: "smooth" });
+            }
         }
     }, [status]);
 
     useEffect(() => {
+        let scrollTimeout: NodeJS.Timeout;
+
         const handleScroll = () => {
-            const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
-            
-            if (!isAtBottom && status === 'streaming' && !hasManuallyScrolled) {
-                setHasManuallyScrolled(true);
+            // Clear any pending timeout
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
             }
-            
-            if (status === 'streaming' && !hasManuallyScrolled) {
-                if (bottomRef.current && (messages.length > 0 || suggestedQuestions.length > 0)) {
-                    bottomRef.current.scrollIntoView({ behavior: "smooth" });
+
+            // If we're not auto-scrolling and we're streaming, it must be a user scroll
+            if (!isAutoScrollingRef.current && status === 'streaming') {
+                const isAtBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 100;
+                if (!isAtBottom) {
+                    setHasManuallyScrolled(true);
                 }
             }
         };
 
         window.addEventListener('scroll', handleScroll);
-        
+
+        // Auto-scroll on new content if we haven't manually scrolled
         if (status === 'streaming' && !hasManuallyScrolled && bottomRef.current) {
-            bottomRef.current.scrollIntoView({ behavior: "smooth" });
+            scrollTimeout = setTimeout(() => {
+                isAutoScrollingRef.current = true;
+                bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                // Reset auto-scroll flag after animation
+                setTimeout(() => {
+                    isAutoScrollingRef.current = false;
+                }, 100);
+            }, 100);
         }
-        
-        return () => window.removeEventListener('scroll', handleScroll);
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+        };
     }, [messages, suggestedQuestions, status, hasManuallyScrolled]);
 
     const handleSuggestedQuestionClick = useCallback(async (question: string) => {
@@ -1332,6 +1386,9 @@ const HomeContent = () => {
 
         switch (part.type) {
             case "text":
+                if (part.text.trim() === "" || part.text === null || part.text === undefined || !part.text) {
+                    return null;
+                }
                 return (
                     <div key={`${messageIndex}-${partIndex}-text`}>
                         <div className="flex items-center justify-between mt-5 mb-2">
@@ -1511,28 +1568,28 @@ const HomeContent = () => {
 
     // Add state for tracking live elapsed time
     const [liveElapsedTimes, setLiveElapsedTimes] = useState<Record<string, number>>({});
-    
+
     // Update live elapsed time for active reasoning sections
     useEffect(() => {
         const activeReasoningSections = Object.entries(reasoningTimings)
             .filter(([_, timing]) => !timing.endTime);
-            
+
         if (activeReasoningSections.length === 0) return;
-        
+
         const interval = setInterval(() => {
             const now = Date.now();
             const updatedTimes: Record<string, number> = {};
-            
+
             activeReasoningSections.forEach(([key, timing]) => {
                 updatedTimes[key] = (now - timing.startTime) / 1000;
             });
-            
+
             setLiveElapsedTimes(prev => ({
                 ...prev,
                 ...updatedTimes
             }));
         }, 100);
-        
+
         return () => clearInterval(interval);
     }, [reasoningTimings]);
 
@@ -1565,16 +1622,16 @@ const HomeContent = () => {
     const WidgetSection = memo(() => {
         const [currentTime, setCurrentTime] = useState(new Date());
         const timerRef = useRef<NodeJS.Timeout>();
-        
+
         useEffect(() => {
             // Sync with the nearest second
             const now = new Date();
             const delay = 1000 - now.getMilliseconds();
-            
+
             // Initial sync
             const timeout = setTimeout(() => {
                 setCurrentTime(new Date());
-                
+
                 // Then start the interval
                 timerRef.current = setInterval(() => {
                     setCurrentTime(new Date());
@@ -1588,10 +1645,10 @@ const HomeContent = () => {
                 }
             };
         }, []);
-        
+
         // Get user's timezone
         const timezone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
+
         // Format date and time with timezone
         const dateFormatter = new Intl.DateTimeFormat('en-US', {
             weekday: 'short',
@@ -1599,29 +1656,29 @@ const HomeContent = () => {
             day: 'numeric',
             timeZone: timezone
         });
-        
+
         const timeFormatter = new Intl.DateTimeFormat('en-US', {
             hour: '2-digit',
             minute: '2-digit',
             hour12: true,
             timeZone: timezone
         });
-        
+
         const formattedDate = dateFormatter.format(currentTime);
         const formattedTime = timeFormatter.format(currentTime);
-        
+
         const handleDateTimeClick = useCallback(() => {
             if (status !== 'ready') return;
-            
+
             append({
                 content: `What's the current date and time?`,
                 role: 'user'
             });
-            
+
             lastSubmittedQueryRef.current = `What's the current date and time?`;
             setHasSubmitted(true);
-        }, [status, append, setHasSubmitted]);
-        
+        }, []);
+
         return (
             <div className="mt-8 w-full">
                 <div className="flex flex-wrap gap-3 justify-center">
@@ -1636,7 +1693,7 @@ const HomeContent = () => {
                             {formattedTime}
                         </span>
                     </Button>
-                    
+
                     {/* Date Widget */}
                     <Button
                         variant="outline"
@@ -1652,7 +1709,7 @@ const HomeContent = () => {
             </div>
         );
     });
-    
+
     WidgetSection.displayName = 'WidgetSection';
 
     return (
@@ -1703,7 +1760,7 @@ const HomeContent = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                    
+
                     {/* Add the widget section below form when no messages */}
                     {messages.length === 0 && (
                         <div>
@@ -2224,47 +2281,77 @@ const ToolInvocationListView = memo(
                     }
 
                     const youtubeResult = result as YouTubeSearchResponse;
-
+                    
+                    // Filter out videos with no meaningful content
+                    const filteredVideos = youtubeResult.results.filter(video => 
+                        (video.timestamps && video.timestamps.length > 0) || 
+                        video.captions || 
+                        video.summary
+                    );
+                    
+                    // If no videos with content, show a message instead
+                    if (filteredVideos.length === 0) {
+                        return (
+                            <div className="rounded-xl overflow-hidden border dark:border-neutral-800 border-neutral-200 bg-white dark:bg-neutral-900 shadow-sm p-4 text-center">
+                                <div className="flex flex-col items-center gap-3 py-6">
+                                    <div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-50 dark:bg-red-950/30">
+                                        <YoutubeIcon className="h-6 w-6 text-red-600" />
+                                    </div>
+                                    <div className="text-center">
+                                        <h2 className="text-base font-medium text-neutral-900 dark:text-neutral-100 mb-1">
+                                            No Content Available
+                                        </h2>
+                                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                            The videos found don&apos;t contain any timestamps or transcripts.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+                    
                     return (
-                        <Accordion type="single" defaultValue="videos" collapsible className="w-full">
-                            <AccordionItem value="videos" className="border-0">
-                                <AccordionTrigger
-                                    className={cn(
-                                        "w-full dark:bg-neutral-900 bg-white rounded-xl dark:border-neutral-800 border-gray-200 border px-6 py-4 hover:no-underline transition-all",
-                                        "[&[data-state=open]]:rounded-b-none",
-                                        "[&[data-state=open]]:border-b-0"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-lg dark:bg-neutral-800 bg-gray-100">
-                                            <YoutubeIcon className="h-4 w-4 text-red-500" />
-                                        </div>
-                                        <div>
-                                            <h2 className="dark:text-neutral-100 text-gray-900 font-medium text-left">
-                                                YouTube Results
-                                            </h2>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Badge variant="secondary" className="dark:bg-neutral-800 bg-gray-100 dark:text-neutral-300 text-gray-600">
-                                                    {youtubeResult.results.length} videos
-                                                </Badge>
+                        <div className="w-full my-4">
+                            <Accordion type="single" collapsible defaultValue="videos">
+                                <AccordionItem value="videos" className="border dark:border-neutral-800 rounded-xl bg-white dark:bg-neutral-900 shadow-sm">
+                                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex items-center justify-center h-9 w-9 rounded-full bg-red-50 dark:bg-red-950/30">
+                                                <YoutubeIcon className="h-5 w-5 text-red-600" />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-base font-medium text-neutral-900 dark:text-neutral-100 text-left">
+                                                    YouTube Results
+                                                </h2>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <Badge variant="secondary" className="px-2 py-0 h-5 text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                                                        {filteredVideos.length} videos with content
+                                                    </Badge>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </AccordionTrigger>
-
-                                <AccordionContent className="dark:bg-neutral-900 bg-white dark:border-neutral-800 border-gray-200 border border-t-0 rounded-b-xl">
-                                    <div className="flex overflow-x-auto gap-3 p-3 no-scrollbar">
-                                        {youtubeResult.results.map((video, index) => (
-                                            <YouTubeCard
-                                                key={video.videoId}
-                                                video={video}
-                                                index={index}
-                                            />
-                                        ))}
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="relative">
+                                            <div className="w-full overflow-x-scroll">
+                                                <div className="flex gap-3 p-4">
+                                                    {filteredVideos.map((video, index) => (
+                                                        <MemoizedYouTubeCard
+                                                            key={video.videoId}
+                                                            video={video}
+                                                            index={index}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {filteredVideos.length > 3 && (
+                                                <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white dark:from-neutral-900 to-transparent pointer-events-none" />
+                                            )}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
                     );
                 }
 
@@ -2574,7 +2661,7 @@ const ToolInvocationListView = memo(
                             <div className="border border-neutral-200 rounded-xl my-4 p-4 dark:border-neutral-800 bg-gradient-to-b from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-900/90">
                                 <div className="flex items-center gap-4">
                                     <div className="relative w-10 h-10">
-                                        <div className="absolute inset-0 bg-primary/10 animate-pulse rounded-lg" />
+                                        <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
                                         <Globe className="h-5 w-5 text-primary/70 absolute inset-0 m-auto" />
                                     </div>
                                     <div className="space-y-2 flex-1">
@@ -2589,6 +2676,45 @@ const ToolInvocationListView = memo(
                         );
                     }
 
+                    // Update the error message UI with better dark mode border visibility
+                    if (result.error || (result.results && result.results[0] && result.results[0].error)) {
+                        const errorMessage = result.error || (result.results && result.results[0] && result.results[0].error);
+                        return (
+                            <div className="border border-red-200 dark:border-red-500 rounded-xl my-4 p-4 bg-red-50 dark:bg-red-950/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center flex-shrink-0">
+                                        <Globe className="h-4 w-4 text-red-600 dark:text-red-300" />
+                                    </div>
+                                    <div>
+                                        <div className="text-red-700 dark:text-red-300 text-sm font-medium">
+                                            Error retrieving content
+                                        </div>
+                                        <div className="text-red-600/80 dark:text-red-400/80 text-xs mt-1">
+                                            {errorMessage}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Update the "no content" message UI with better dark mode border visibility
+                    if (!result.results || result.results.length === 0) {
+                        return (
+                            <div className="border border-amber-200 dark:border-amber-500 rounded-xl my-4 p-4 bg-amber-50 dark:bg-amber-950/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
+                                        <Globe className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                                    </div>
+                                    <div className="text-amber-700 dark:text-amber-300 text-sm font-medium">
+                                        No content available
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Existing rendering for successful retrieval:
                     return (
                         <div className="border border-neutral-200 rounded-xl my-4 overflow-hidden dark:border-neutral-800 bg-gradient-to-b from-white to-neutral-50 dark:from-neutral-900 dark:to-neutral-900/90">
                             <div className="p-4">
@@ -2599,14 +2725,17 @@ const ToolInvocationListView = memo(
                                             className="h-5 w-5 absolute inset-0 m-auto"
                                             src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(result.results[0].url)}`}
                                             alt=""
+                                            onError={(e) => {
+                                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='none' d='M0 0h24v24H0z'/%3E%3Cpath d='M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-2.29-2.333A17.9 17.9 0 0 1 8.027 13H4.062a8.008 8.008 0 0 0 5.648 6.667zM10.03 13c.151 2.439.848 4.73 1.97 6.752A15.905 15.905 0 0 0 13.97 13h-3.94zm9.908 0h-3.965a17.9 17.9 0 0 1-1.683 6.667A8.008 8.008 0 0 0 19.938 13zM4.062 11h3.965A17.9 17.9 0 0 1 9.71 4.333 8.008 8.008 0 0 0 4.062 11zm5.969 0h3.938A15.905 15.905 0 0 0 12 4.248 15.905 15.905 0 0 0 10.03 11zm4.259-6.667A17.9 17.9 0 0 1 15.938 11h3.965a8.008 8.008 0 0 0-5.648-6.667z' fill='rgba(128,128,128,0.5)'/%3E%3C/svg%3E";
+                                            }}
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0 space-y-2">
                                         <h2 className="font-semibold text-lg text-neutral-900 dark:text-neutral-100 tracking-tight truncate">
-                                            {result.results[0].title}
+                                            {result.results[0].title || 'Retrieved Content'}
                                         </h2>
                                         <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-2">
-                                            {result.results[0].description}
+                                            {result.results[0].description || 'No description available'}
                                         </p>
                                         <div className="flex items-center gap-3">
                                             <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary">
@@ -2637,7 +2766,7 @@ const ToolInvocationListView = memo(
                                     </summary>
                                     <div className="max-h-[50vh] overflow-y-auto p-4 bg-neutral-50/50 dark:bg-neutral-800/30">
                                         <div className="prose prose-neutral dark:prose-invert prose-sm max-w-none">
-                                            <ReactMarkdown>{result.results[0].content}</ReactMarkdown>
+                                            <ReactMarkdown>{result.results[0].content || 'No content available'}</ReactMarkdown>
                                         </div>
                                     </div>
                                 </details>
@@ -2710,16 +2839,16 @@ const ToolInvocationListView = memo(
                     const LiveClock = memo(() => {
                         const [time, setTime] = useState(() => new Date());
                         const timerRef = useRef<NodeJS.Timeout>();
-                        
+
                         useEffect(() => {
                             // Sync with the nearest second
                             const now = new Date();
                             const delay = 1000 - now.getMilliseconds();
-                            
+
                             // Initial sync
                             const timeout = setTimeout(() => {
                                 setTime(new Date());
-                                
+
                                 // Then start the interval
                                 timerRef.current = setInterval(() => {
                                     setTime(new Date());
@@ -2743,7 +2872,7 @@ const ToolInvocationListView = memo(
                             hour12: true,
                             timeZone: timezone
                         });
-                        
+
                         const formattedParts = formatter.formatToParts(time);
                         const timeParts = {
                             hour: formattedParts.find(part => part.type === 'hour')?.value || '12',
@@ -2751,7 +2880,7 @@ const ToolInvocationListView = memo(
                             second: formattedParts.find(part => part.type === 'second')?.value || '00',
                             dayPeriod: formattedParts.find(part => part.type === 'dayPeriod')?.value || 'AM'
                         };
-                        
+
                         return (
                             <div className="mt-3">
                                 <div className="flex items-baseline">
@@ -2773,7 +2902,7 @@ const ToolInvocationListView = memo(
                             </div>
                         );
                     });
-                    
+
                     LiveClock.displayName = 'LiveClock';
 
                     return (
@@ -2793,7 +2922,7 @@ const ToolInvocationListView = memo(
                                             </div>
                                             <LiveClock />
                                         </div>
-                                        
+
                                         <div>
                                             <h3 className="text-xs sm:text-sm font-medium text-neutral-500 dark:text-neutral-400 tracking-wider uppercase mb-2">
                                                 Today&apos;s Date
@@ -2921,7 +3050,7 @@ const ToolInvocationListView = memo(
                                     ) : isPlaying ? (
                                         <Pause className="h-4 w-4 sm:h-5 sm:w-5" />
                                     ) : (
-                                        <Play className="h-4 w-4 sm:h-5 sm:w-5" />
+                                        <PlayIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                                     )}
                                 </Button>
 
